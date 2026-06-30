@@ -1,12 +1,13 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.request.LoginRequest;
-import com.example.backend.dto.request.RefreshTokenRequest;
-import com.example.backend.dto.request.RegisterRequest;
+import com.example.backend.dto.request.*;
 import com.example.backend.dto.response.AuthResponse;
+import com.example.backend.dto.response.ForgotPasswordResponse;
+import com.example.backend.entity.PasswordResetToken;
 import com.example.backend.entity.TokenBlacklist;
 import com.example.backend.entity.User;
 import com.example.backend.entity.enums.Role;
+import com.example.backend.repository.PasswordResetTokenRepository;
 import com.example.backend.repository.TokenBlacklistRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.CustomUserDetailsService;
@@ -26,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
@@ -115,6 +118,10 @@ public class AuthService {
         }
 
         try {
+            if (!jwtUtil.isAccessToken(accessToken)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid access token");
+            }
+
             LocalDateTime expiredAt = LocalDateTime.ofInstant(
                     jwtUtil.extractExpiration(accessToken).toInstant(),
                     ZoneId.systemDefault()
@@ -127,10 +134,62 @@ public class AuthService {
 
             tokenBlacklistRepository.save(blacklistedToken);
         } catch (ExpiredJwtException ex) {
-            // token đã hết hạn thì không cần blacklist thêm
+            // token expired rồi thì không cần blacklist thêm
         } catch (JwtException | IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid access token");
         }
+    }
+
+    @Transactional
+    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        passwordResetTokenRepository.deleteByExpiresAtBefore(LocalDateTime.now());
+
+        User user = userRepository.findByEmail(normalizedEmail).orElse(null);
+        if (user == null) {
+            return ForgotPasswordResponse.builder()
+                    .message("If the email exists, reset instructions have been generated")
+                    .build();
+        }
+
+        passwordResetTokenRepository.deleteByUserAndUsedFalse(user);
+
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .user(user)
+                .token(generateResetToken())
+                .expiresAt(LocalDateTime.now().plusMinutes(15))
+                .used(false)
+                .build();
+
+        passwordResetTokenRepository.save(resetToken);
+
+        return ForgotPasswordResponse.builder()
+                .message("Reset token generated (dev mode)")
+                .resetToken(resetToken.getToken())
+                .expiresAt(resetToken.getExpiresAt())
+                .build();
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenAndUsedFalse(request.getToken().trim())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reset token"));
+
+        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reset token has expired");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+    }
+
+    private String generateResetToken() {
+        return UUID.randomUUID().toString().replace("-", "")
+                + UUID.randomUUID().toString().replace("-", "");
     }
 
     private String extractBearerToken(String authorizationHeader) {

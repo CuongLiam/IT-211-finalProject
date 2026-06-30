@@ -1,9 +1,8 @@
 package com.example.backend.controller;
 
-import com.example.backend.dto.request.LoginRequest;
-import com.example.backend.dto.request.RefreshTokenRequest;
-import com.example.backend.dto.request.RegisterRequest;
+import com.example.backend.dto.request.*;
 import com.example.backend.dto.response.AuthResponse;
+import com.example.backend.dto.response.ForgotPasswordResponse;
 import com.example.backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +37,17 @@ public class AuthController {
     public ResponseEntity<Void> logout(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
         authService.logout(authorizationHeader);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
         return ResponseEntity.noContent().build();
     }
 }
