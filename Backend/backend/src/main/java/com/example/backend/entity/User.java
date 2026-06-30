@@ -2,7 +2,7 @@ package com.example.backend.entity;
 
 import java.time.LocalDateTime;
 
-import javax.management.relation.Role;
+import com.example.backend.entity.enums.Role;
 
 import jakarta.persistence.*;
 import lombok.*;
