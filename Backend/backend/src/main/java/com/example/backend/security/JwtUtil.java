@@ -15,6 +15,10 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
+    private static final String TOKEN_TYPE_CLAIM = "tokenType";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
+
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
@@ -25,15 +29,19 @@ public class JwtUtil {
     private long refreshTokenExpirationMs;
 
     public String generateAccessToken(UserDetails userDetails) {
-        return buildToken(userDetails.getUsername(), accessTokenExpirationMs);
+        return buildToken(userDetails.getUsername(), accessTokenExpirationMs, ACCESS_TOKEN_TYPE);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(userDetails.getUsername(), refreshTokenExpirationMs);
+        return buildToken(userDetails.getUsername(), refreshTokenExpirationMs, REFRESH_TOKEN_TYPE);
     }
 
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    public Date extractExpiration(String token) {
+        return extractAllClaims(token).getExpiration();
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
@@ -41,14 +49,24 @@ public class JwtUtil {
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
-    public Date extractExpiration(String token) {
-        return extractAllClaims(token).getExpiration();
+    public boolean isAccessToken(String token) {
+        return ACCESS_TOKEN_TYPE.equals(extractTokenType(token));
     }
 
-    private String buildToken(String subject, long expirationMs) {
+    public boolean isRefreshToken(String token) {
+        return REFRESH_TOKEN_TYPE.equals(extractTokenType(token));
+    }
+
+    private String extractTokenType(String token) {
+        Object tokenType = extractAllClaims(token).get(TOKEN_TYPE_CLAIM);
+        return tokenType == null ? "" : tokenType.toString();
+    }
+
+    private String buildToken(String subject, long expirationMs, String tokenType) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(subject)
+                .claim(TOKEN_TYPE_CLAIM, tokenType)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(expirationMs)))
                 .signWith(getSigningKey())
