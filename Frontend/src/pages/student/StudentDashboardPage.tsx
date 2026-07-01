@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
 import { useAuthContext } from '../../context/useAuthContext';
 import { studentApi } from '../../api/studentApi';
+import SubmissionPage from './SubmissionPage';
+import StudentMaterialsPage from './StudentMaterialsPage';
 import type {
   ApiErrorResponse,
   EnrollmentCourse,
@@ -261,6 +263,11 @@ const StudentDashboardPage: React.FC = () => {
               </button>
             </div>
           </section>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-6">
+          <SubmissionPage />
+          <StudentMaterialsPage />
         </div>
       </div>
     </div>
