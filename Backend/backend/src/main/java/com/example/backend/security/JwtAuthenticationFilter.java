@@ -2,7 +2,7 @@ package com.example.backend.security;
 
 import com.example.backend.exception.ApiErrorResponse;
 import com.example.backend.repository.TokenBlacklistRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

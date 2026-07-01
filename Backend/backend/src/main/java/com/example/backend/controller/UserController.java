@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.request.ChangePasswordRequest;
 import com.example.backend.dto.request.UpdateProfileRequest;
+import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.UserProfileResponse;
 import com.example.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -20,15 +21,17 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<UserProfileResponse> getMyProfile(Authentication authentication) {
-        return ResponseEntity.ok(userService.getMyProfile(currentEmail(authentication)));
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile(Authentication authentication) {
+        UserProfileResponse data = userService.getMyProfile(currentEmail(authentication));
+        return ResponseEntity.ok(ApiResponse.success("Get profile successful", data));
     }
 
     @PutMapping
-    public ResponseEntity<UserProfileResponse> updateMyProfile(
+    public ResponseEntity<ApiResponse<UserProfileResponse>> updateMyProfile(
             Authentication authentication,
             @Valid @RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(userService.updateMyProfile(currentEmail(authentication), request));
+        UserProfileResponse data = userService.updateMyProfile(currentEmail(authentication), request);
+        return ResponseEntity.ok(ApiResponse.success("Update profile successful", data));
     }
 
     @PostMapping("/change-password")

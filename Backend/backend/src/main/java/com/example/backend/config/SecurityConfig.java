@@ -3,7 +3,7 @@ package com.example.backend.config;
 import com.example.backend.exception.ApiErrorResponse;
 import com.example.backend.security.CustomUserDetailsService;
 import com.example.backend.security.JwtAuthenticationFilter;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
