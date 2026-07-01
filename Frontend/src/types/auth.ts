@@ -39,6 +39,62 @@ export interface ApiSuccessResponse<T> {
   timestamp: string;
 }
 
+export interface ApiErrorResponse {
+  success: false;
+  status: number;
+  error: string;
+  message: string;
+  path: string;
+  timestamp: string;
+  validationErrors?: Record<string, string>;
+}
+
 export interface RefreshTokenRequest {
   refreshToken: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
+export interface AdminUser {
+  id: number;
+  fullName: string;
+  email: string;
+  role: Role;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCourse {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  lecturerId: number;
+  lecturerName: string;
+  lecturerEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateUserPayload {
+  fullName: string;
+  email: string;
+  password: string;
+  role: Role;
+  enabled: boolean;
+}
+
+export interface CreateCoursePayload {
+  code: string;
+  name: string;
+  description?: string;
+  lecturerId: number;
 }
