@@ -1,11 +1,15 @@
 package com.example.backend.config;
 
+import com.example.backend.exception.ApiErrorResponse;
 import com.example.backend.security.CustomUserDetailsService;
 import com.example.backend.security.JwtAuthenticationFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -19,6 +23,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.io.IOException;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -27,6 +33,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService customUserDetailsService;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -44,22 +51,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/student/**").hasRole("STUDENT")
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-
-                // exeption 403 khi thiếu token là do chưa khai báo AuthenticationEntryPoint riêng
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json");
-                            response.getWriter().write("{\"message\":\"Unauthorized\"}");
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                            response.setContentType("application/json");
-                            response.getWriter().write("{\"message\":\"Forbidden\"}");
-                        })
-                );
+                        .authenticationEntryPoint((request, response, authException) ->
+                                writeSecurityError(response, HttpStatus.UNAUTHORIZED, "Unauthorized", request.getRequestURI()))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                writeSecurityError(response, HttpStatus.FORBIDDEN, "Forbidden", request.getRequestURI()))
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
+    }
+
+    private void writeSecurityError(HttpServletResponse response, HttpStatus status, String message, String path) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getWriter(), ApiErrorResponse.of(status, message, path, null));
     }
 
     @Bean

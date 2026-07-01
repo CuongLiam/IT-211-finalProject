@@ -1,6 +1,8 @@
 package com.example.backend.security;
 
+import com.example.backend.exception.ApiErrorResponse;
 import com.example.backend.repository.TokenBlacklistRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService customUserDetailsService;
     private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -41,9 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         if (tokenBlacklistRepository.existsByToken(token)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write("{\"message\":\"Token has been revoked\"}");
+            writeFilterError(response, HttpStatus.UNAUTHORIZED, "Token has been revoked", request.getRequestURI());
             return;
         }
 
@@ -54,9 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
 
                 if (!jwtUtil.isAccessToken(token)) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    response.getWriter().write("{\"message\":\"Invalid token type\"}");
+                    writeFilterError(response, HttpStatus.UNAUTHORIZED, "Invalid token type", request.getRequestURI());
                     return;
                 }
 
@@ -73,5 +73,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void writeFilterError(HttpServletResponse response, HttpStatus status, String message, String path) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getWriter(), ApiErrorResponse.of(status, message, path, null));
     }
 }

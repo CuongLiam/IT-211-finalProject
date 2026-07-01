@@ -2,7 +2,7 @@ package com.example.backend.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
-import org.springframework.dao.CannotCreateTransactionException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
