@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useMemo, useState } from 'react';
 import { authApi } from '../api/authApi';
 import { tokenStorage } from '../api/tokenStorage';
 import type { AuthUser, LoginPayload, RegisterPayload } from '../types/auth';
@@ -6,12 +6,12 @@ import type { AuthUser, LoginPayload, RegisterPayload } from '../types/auth';
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (payload: LoginPayload) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<AuthUser>;
+  register: (payload: RegisterPayload) => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const loadInitialUser = (): AuthUser | null => {
   const storedUser = tokenStorage.getUser();
@@ -27,34 +27,34 @@ const loadInitialUser = (): AuthUser | null => {
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(loadInitialUser());
 
-  const login = async (payload: LoginPayload) => {
+  const login = async (payload: LoginPayload): Promise<AuthUser> => {
     const data = await authApi.login(payload);
+    const nextUser: AuthUser = {
+      id: data.userId,
+      email: data.email,
+      role: data.role,
+    };
+
     tokenStorage.setTokens(data.accessToken, data.refreshToken);
-    tokenStorage.setUser({
-      id: data.userId,
-      email: data.email,
-      role: data.role,
-    });
-    setUser({
-      id: data.userId,
-      email: data.email,
-      role: data.role,
-    });
+    tokenStorage.setUser(nextUser);
+    setUser(nextUser);
+
+    return nextUser;
   };
 
-  const register = async (payload: RegisterPayload) => {
+  const register = async (payload: RegisterPayload): Promise<AuthUser> => {
     const data = await authApi.register(payload);
+    const nextUser: AuthUser = {
+      id: data.userId,
+      email: data.email,
+      role: data.role,
+    };
+
     tokenStorage.setTokens(data.accessToken, data.refreshToken);
-    tokenStorage.setUser({
-      id: data.userId,
-      email: data.email,
-      role: data.role,
-    });
-    setUser({
-      id: data.userId,
-      email: data.email,
-      role: data.role,
-    });
+    tokenStorage.setUser(nextUser);
+    setUser(nextUser);
+
+    return nextUser;
   };
 
   const logout = async () => {
@@ -78,12 +78,4 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuthContext = (): AuthContextValue => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuthContext must be used within AuthProvider');
-  }
-  return ctx;
 };
