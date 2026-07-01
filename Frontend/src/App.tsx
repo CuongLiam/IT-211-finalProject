@@ -1,10 +1,17 @@
-import React from 'react'
-import './App.css'
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import RouterConfig from './routes/RouterConfig';
+import './App.css';
 
-export default function App() {
+const App: React.FC = () => {
   return (
-    <div>
-      Hello World
-    </div>
-  )
-}
+    <AuthProvider>
+      <BrowserRouter>
+        <RouterConfig />
+      </BrowserRouter>
+    </AuthProvider>
+  );
+};
+
+export default App;
