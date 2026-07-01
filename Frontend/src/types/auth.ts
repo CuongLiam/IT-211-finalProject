@@ -98,3 +98,26 @@ export interface CreateCoursePayload {
   description?: string;
   lecturerId: number;
 }
+
+export interface StudentCourse {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  lecturerId: number;
+  lecturerName: string;
+  lecturerEmail: string;
+  enrolled: boolean;
+}
+
+export interface EnrollmentCourse {
+  enrollmentId: number;
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  courseDescription: string | null;
+  lecturerId: number;
+  lecturerName: string;
+  status: string;
+  enrolledAt: string;
+}
