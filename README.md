@@ -1,60 +1,159 @@
-# Course Management & Project Grading System
+# IT211 Course Management System
 
-This repository contains a full-stack course management and project grading system built with Spring Boot and React TypeScript.
+Hệ thống quản lý khóa học và chấm đồ án theo mô hình phân quyền 3 vai trò: Admin, Lecturer, Student.
 
-## 1. Architecture
+## 1. Tổng quan hệ thống
 
-- Backend: Spring Boot (stateless REST API)
-- Frontend: React + TypeScript + Vite + Tailwind
+- Backend: Spring Boot 4.1 (REST API, stateless, JWT)
+- Frontend: React + TypeScript + Vite
 - Database: MySQL
-- Authentication: Spring Security + JWT access/refresh token + token blacklist
-- File Storage: Cloudinary
-- API Docs: Swagger / OpenAPI
+- File storage: Cloudinary (nộp bài và tài liệu giảng dạy)
+- API docs: Swagger OpenAPI
+- Token blacklist: MySQL table `token_blacklist` (không dùng Redis runtime)
 
-Workspace structure:
+## 2. Kiến trúc tổng thể
 
-- Backend/: Spring Boot application source
-- Frontend/: React application source
-- docs/: optional design and report documents
+```mermaid
+flowchart LR
+    U[Browser User] --> FE[React Frontend]
+    FE -->|JWT Bearer| BE[Spring Boot API]
+    BE --> DB[(MySQL)]
+    BE --> CLD[(Cloudinary)]
+```
 
-## 2. Implemented Features
+## 3. Vai trò và phạm vi
 
-### Sprint 1
+- Admin:
+  - Quản lý users (CRUD, search, paging, edit name/role/enabled)
+  - Quản lý courses (CRUD, search, paging, edit course/lecturer)
+- Lecturer:
+  - Tạo assignment cho course phụ trách
+  - Upload/list/update/delete lecture materials
+  - Xem submissions, chấm điểm và feedback
+- Student:
+  - Enroll/cancel enrollment
+  - Xem assignments của các lớp đã enroll
+  - Nộp bài (GitHub URL + file)
+  - Xem lịch sử nộp bài, điểm, tài liệu
 
-- Authentication: register, login, logout, refresh token
-- User profile: get/update profile, change password, forgot/reset password
-- Admin CRUD users/courses with pagination/search
-- Global exception handler and standardized API response format
-- Frontend authentication flow, protected routes, role guards
+## 4. Luồng xác thực và bảo mật
 
-### Sprint 2
+### 4.1 Login và cấp JWT
 
-- Student course enrollment APIs and frontend page
-- Cloudinary setup + file validator
-- Student submission API: GitHub link + file upload
-- Student submission history frontend
-- AOP logging for grading use case
-- Lecturer grading API + grade summary frontend
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Auth API
+    participant DB as MySQL
+    C->>A: POST /api/v1/auth/login
+    A->>DB: verify user/password
+    A-->>C: accessToken + refreshToken
+```
 
-### Sprint 3
+### 4.2 Refresh token
 
-- Lecture materials API (upload/list/update/delete)
-- Lecturer materials frontend and student materials frontend
-- Swagger annotations added on key new endpoints
-- Unit test scaffolding recommendation included below
+- Frontend tự động refresh khi access token hết hạn (HTTP 401).
+- Backend kiểm tra token type, chữ ký, expiry, blacklist.
 
-## 3. Backend Setup
+### 4.3 Logout và blacklist
 
-Path:
+- Khi logout, access token được ghi vào bảng `token_blacklist`.
+- `JwtAuthenticationFilter` chặn request dùng token đã bị revoke.
 
-- Backend/backend
+## 5. Luồng nghiệp vụ chính
 
-Requirements:
+### 5.1 Admin flow
 
-- JDK 21
+1. Admin tạo Lecturer và Student.
+2. Admin tạo Course và gán Lecturer.
+3. Admin có thể chỉnh sửa Name/Role/Enabled của user.
+4. Admin có thể chỉnh sửa Code/Name/Description/Lecturer của course.
+
+### 5.2 Lecturer flow
+
+1. Lecturer tạo Assignment cho course mình phụ trách.
+2. Lecturer upload tài liệu giảng dạy.
+3. Lecturer xem danh sách submissions.
+4. Lecturer nhập điểm và feedback.
+
+### 5.3 Student flow
+
+1. Student enroll course.
+2. Student xem assignments theo các course đã enroll.
+3. Student nộp bài theo assignment.
+4. Student xem lịch sử submission, materials, grades.
+
+### 5.4 Submission và grading flow
+
+```mermaid
+sequenceDiagram
+    participant S as Student
+    participant L as Lecturer
+    participant API as Backend API
+    participant DB as MySQL
+    participant C as Cloudinary
+
+    S->>API: POST /student/courses/{courseId}/enroll
+    API->>DB: save enrollment ACTIVE
+
+    L->>API: POST /lecturer/assignments
+    API->>DB: save assignment
+
+    S->>API: POST /student/submissions (assignmentId + github + file)
+    API->>C: upload file
+    API->>DB: save submission
+
+    L->>API: POST /lecturer/submissions/{id}/grade
+    API->>DB: save grade + feedback
+
+    S->>API: GET /student/grades
+    API-->>S: grade result
+```
+
+## 6. API map (rút gọn)
+
+### 6.1 Auth
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh-token`
+- `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
+
+### 6.2 User profile
+
+- `GET /api/v1/users/me`
+- `PUT /api/v1/users/me`
+- `POST /api/v1/users/me/change-password`
+
+### 6.3 Admin
+
+- Users: `GET/POST /api/v1/admin/users`, `GET/PUT/DELETE /api/v1/admin/users/{id}`
+- Courses: `GET/POST /api/v1/admin/courses`, `GET/PUT/DELETE /api/v1/admin/courses/{id}`
+
+### 6.4 Lecturer
+
+- Assignments: `POST /api/v1/lecturer/assignments`, `GET /api/v1/lecturer/assignments`
+- Submissions/grades: `GET /api/v1/lecturer/submissions`, `POST /api/v1/lecturer/submissions/{submissionId}/grade`, `GET /api/v1/lecturer/grades`
+- Materials: `POST/GET/PUT/DELETE /api/v1/lecturer/materials...`
+
+### 6.5 Student
+
+- Enrollments: `GET /api/v1/student/courses`, `POST/DELETE /api/v1/student/courses/{courseId}/enroll`, `GET /api/v1/student/courses/enrollments`
+- Assignments: `GET /api/v1/student/courses/assignments`
+- Submissions: `POST/GET /api/v1/student/submissions`
+- Learning: `GET /api/v1/student/materials`, `GET /api/v1/student/grades`
+
+## 7. Cài đặt và chạy
+
+### 7.1 Yêu cầu
+
+- Java 21+
 - MySQL 8+
+- Node.js 18+, npm 9+
 
-Create database:
+### 7.2 Tạo database
 
 ```sql
 CREATE DATABASE IF NOT EXISTS course_management
@@ -62,123 +161,109 @@ CREATE DATABASE IF NOT EXISTS course_management
   COLLATE utf8mb4_unicode_ci;
 ```
 
-Set environment variables in IDE run configuration:
+### 7.3 Cấu hình biến môi trường
 
-- MYSQL_USERNAME
-- MYSQL_PASSWORD
-- JWT_SECRET (Base64 256-bit secret)
-- CLOUDINARY_CLOUD_NAME
-- CLOUDINARY_API_KEY
-- CLOUDINARY_API_SECRET
+Tạo file `Backend/backend/.env`:
 
-Run backend:
+```properties
+JWT_SECRET=<base64-secret>
+MYSQL_USERNAME=root
+MYSQL_PASSWORD=<password>
+CLOUDINARY_CLOUD_NAME=<cloud-name>
+CLOUDINARY_API_KEY=<api-key>
+CLOUDINARY_API_SECRET=<api-secret>
+```
+
+### 7.4 Chạy backend
+
+Windows:
+
+```bash
+cd Backend/backend
+gradlew.bat bootRun
+```
+
+macOS/Linux:
 
 ```bash
 cd Backend/backend
 ./gradlew bootRun
 ```
 
-Swagger:
+Backend URL: `http://localhost:8080`
+Swagger URL: `http://localhost:8080/swagger-ui.html`
 
-- http://localhost:8080/swagger-ui.html
-
-Health check:
-
-- http://localhost:8080/actuator/health
-
-## 4. Frontend Setup
-
-Path:
-
-- Frontend
-
-Install dependencies:
+### 7.5 Chạy frontend
 
 ```bash
 cd Frontend
 npm install
-```
-
-Run dev server:
-
-```bash
 npm run dev
 ```
 
-Default frontend URL:
+Frontend URL: `http://localhost:5173`
 
-- http://localhost:5173
+## 8. Kiểm thử nhanh end-to-end
 
-## 5. Important API Groups
+1. Login Admin, tạo 1 Lecturer và 1 Student.
+2. Tạo 1 Course và gán Lecturer.
+3. Login Lecturer, tạo 1 Assignment cho course.
+4. Login Student, enroll course và nộp bài theo assignment vừa tạo.
+5. Login Lecturer, chấm điểm submission.
+6. Login Student, kiểm tra grade hiển thị.
 
-Authentication:
+## 9. Unit test
 
-- POST /api/v1/auth/register
-- POST /api/v1/auth/login
-- POST /api/v1/auth/refresh-token
-- POST /api/v1/auth/logout
+```bash
+cd Backend/backend
+gradlew.bat test
+```
 
-Student:
+Report: `Backend/backend/build/reports/tests/test/index.html`
 
-- GET /api/v1/student/courses
-- POST /api/v1/student/courses/{courseId}/enroll
-- DELETE /api/v1/student/courses/{courseId}/enroll
-- POST /api/v1/student/submissions (multipart)
-- GET /api/v1/student/submissions
-- GET /api/v1/student/grades
-- GET /api/v1/student/materials
+## 10. Cấu trúc thư mục
 
-Lecturer:
+```text
+it211_project/
+  Backend/backend/
+    src/main/java/com/example/backend/
+      controller/
+      service/
+      repository/
+      entity/
+      dto/
+      security/
+      exception/
+      config/
+      aop/
+  Frontend/src/
+    pages/
+    api/
+    routes/
+    context/
+    types/
+```
 
-- GET /api/v1/lecturer/submissions
-- POST /api/v1/lecturer/submissions/{submissionId}/grade
-- GET /api/v1/lecturer/grades
-- POST /api/v1/lecturer/materials (multipart)
-- GET /api/v1/lecturer/materials
-- PUT /api/v1/lecturer/materials/{materialId}
-- DELETE /api/v1/lecturer/materials/{materialId}
+## 11. Troubleshooting
 
-Admin:
+### 11.1 MySQL connection refused
 
-- CRUD users and courses under /api/v1/admin/**
+- Kiểm tra MySQL service đang chạy.
+- Kiểm tra `MYSQL_USERNAME`, `MYSQL_PASSWORD` trong `.env`.
+- Kiểm tra DB `course_management` đã tạo.
 
-## 6. Unit Test Plan (Step 23)
+### 11.2 401 Unauthorized
 
-Recommended service tests:
+- Access token hết hạn: frontend sẽ tự refresh.
+- Nếu refresh token không hợp lệ hoặc bị revoke: đăng nhập lại.
 
-- AuthServiceTest
-  - login success/failure
-  - refresh token validation
-  - logout token blacklist behavior
-- GradeServiceTest
-  - grade submission success
-  - forbidden grading for non-owner lecturer
-- SubmissionServiceTest
-  - upload validation
-  - enrollment check
-  - first submit and resubmit flow
+### 11.3 Upload file lỗi
 
-Use Mockito + Spring Boot Test as currently configured in Gradle.
+- Kiểm tra Cloudinary env vars.
+- Kiểm tra định dạng file và kích thước file upload.
 
-## 7. Deployment Notes
+## 12. Ghi chú hiện trạng
 
-Backend options:
-
-- Render/Railway with environment variables configured
-
-Frontend options:
-
-- Vercel/Netlify with API base URL pointing to deployed backend
-
-## 8. Known Notes
-
-- The project currently uses `tools.jackson.databind.ObjectMapper` import as configured in the existing codebase.
-- Ensure Cloudinary environment variables are present before testing submission/material upload endpoints.
-- Some forms currently accept IDs (assignmentId/courseId) directly for faster demo and grading workflow.
-
-## 9. Suggested Next Improvements
-
-- Replace manual ID inputs with dropdowns loaded from APIs
-- Add lecturer assignment management endpoints (create/list assignments)
-- Add stronger integration tests and role-based E2E flows
-- Add CI pipeline (build, test, lint, deploy)
+- Token blacklist đang dùng MySQL.
+- Chức năng assignment cho lecturer và list assignment cho student đã được triển khai.
+- Admin UI đã có edit inline cho Users và Courses.
