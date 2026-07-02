@@ -1,7 +1,7 @@
 package com.example.backend.security;
 
 import com.example.backend.exception.ApiErrorResponse;
-import com.example.backend.repository.TokenBlacklistRepository;
+import com.example.backend.service.RedisTokenBlacklistService;
 import tools.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -27,7 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService customUserDetailsService;
-    private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final RedisTokenBlacklistService redisTokenBlacklistService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -44,7 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
-        if (tokenBlacklistRepository.existsByToken(token)) {
+        if (redisTokenBlacklistService.isBlacklisted(token)) {
             writeFilterError(response, HttpStatus.UNAUTHORIZED, "Token has been revoked", request.getRequestURI());
             return;
         }

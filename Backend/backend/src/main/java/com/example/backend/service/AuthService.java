@@ -4,11 +4,9 @@ import com.example.backend.dto.request.*;
 import com.example.backend.dto.response.AuthResponse;
 import com.example.backend.dto.response.ForgotPasswordResponse;
 import com.example.backend.entity.PasswordResetToken;
-import com.example.backend.entity.TokenBlacklist;
 import com.example.backend.entity.User;
 import com.example.backend.entity.enums.Role;
 import com.example.backend.repository.PasswordResetTokenRepository;
-import com.example.backend.repository.TokenBlacklistRepository;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.CustomUserDetailsService;
 import com.example.backend.security.JwtUtil;
@@ -34,7 +32,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final RedisTokenBlacklistService redisTokenBlacklistService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -81,7 +79,7 @@ public class AuthService {
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         String refreshToken = request.getRefreshToken().trim();
 
-        if (tokenBlacklistRepository.existsByToken(refreshToken)) {
+        if (redisTokenBlacklistService.isBlacklisted(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token has been revoked");
         }
 
@@ -113,7 +111,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Authorization Bearer token is required");
         }
 
-        if (tokenBlacklistRepository.existsByToken(accessToken)) {
+        if (redisTokenBlacklistService.isBlacklisted(accessToken)) {
             return;
         }
 
@@ -127,12 +125,7 @@ public class AuthService {
                     ZoneId.systemDefault()
             );
 
-            TokenBlacklist blacklistedToken = TokenBlacklist.builder()
-                    .token(accessToken)
-                    .expiredAt(expiredAt)
-                    .build();
-
-            tokenBlacklistRepository.save(blacklistedToken);
+            redisTokenBlacklistService.blacklistToken(accessToken, expiredAt);
         } catch (ExpiredJwtException ex) {
             // token expired rồi thì không cần blacklist thêm
         } catch (JwtException | IllegalArgumentException ex) {

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
+import { useAuthContext } from '../../context/useAuthContext';
 import { lecturerApi } from '../../api/lecturerApi';
 import type {
   ApiErrorResponse,
@@ -10,6 +11,8 @@ import type {
 } from '../../types/auth';
 
 const LecturerDashboardPage: React.FC = () => {
+  const { user, logout } = useAuthContext();
+
   const [submissionData, setSubmissionData] = useState<PageResponse<LecturerSubmissionItem> | null>(null);
   const [gradeData, setGradeData] = useState<PageResponse<GradeItem> | null>(null);
   const [materialData, setMaterialData] = useState<PageResponse<LectureMaterialItem> | null>(null);
@@ -120,7 +123,21 @@ const LecturerDashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-amber-50 p-4 md:p-6">
       <div className="mx-auto max-w-7xl space-y-6 rounded-2xl bg-white p-4 md:p-6 shadow">
-        <h1 className="text-2xl font-bold">Lecturer - Grading & Materials</h1>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Lecturer - Grading & Materials</h1>
+            <p className="text-sm text-slate-600">
+              Logged in as: {user?.email} ({user?.role})
+            </p>
+          </div>
+
+          <button
+            onClick={logout}
+            className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-500 transition"
+          >
+            Logout
+          </button>
+        </div>
 
         {message && <div className="rounded bg-slate-100 px-3 py-2 text-sm">{message}</div>}
 
