@@ -186,3 +186,25 @@ export interface LectureMaterialItem {
   uploadedAt: string;
   updatedAt: string;
 }
+
+export interface AssignmentItem {
+  assignmentId: number;
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  lecturerId: number;
+  lecturerName: string;
+  title: string;
+  description: string | null;
+  dueDate: string;
+  maxScore: number;
+  createdAt: string;
+}
+
+export interface CreateAssignmentPayload {
+  courseId: number;
+  title: string;
+  description?: string;
+  dueDate: string;
+  maxScore?: number;
+}

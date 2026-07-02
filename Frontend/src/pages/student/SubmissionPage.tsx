@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
 import { submissionApi } from '../../api/submissionApi';
-import type { ApiErrorResponse, PageResponse, SubmissionItem } from '../../types/auth';
+import { studentApi } from '../../api/studentApi';
+import type { ApiErrorResponse, AssignmentItem, PageResponse, SubmissionItem } from '../../types/auth';
 
 const SubmissionPage: React.FC = () => {
   const [assignmentId, setAssignmentId] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -32,11 +34,21 @@ const SubmissionPage: React.FC = () => {
     }
   }, [page]);
 
+  const loadAssignments = useCallback(async () => {
+    try {
+      const data = await studentApi.listAssignments(0, 100);
+      setAssignments(data.content);
+    } catch (err) {
+      setMessage(extractError(err));
+    }
+  }, []);
+
   useEffect(() => {
     queueMicrotask(() => {
       void loadHistory();
+      void loadAssignments();
     });
-  }, [loadHistory]);
+  }, [loadHistory, loadAssignments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,12 +95,18 @@ const SubmissionPage: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-4">
-        <input
+        <select
           value={assignmentId}
           onChange={(e) => setAssignmentId(e.target.value)}
           className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Assignment ID"
-        />
+        >
+          <option value="">Select assignment</option>
+          {assignments.map((item) => (
+            <option key={item.assignmentId} value={item.assignmentId}>
+              {item.courseCode} - {item.title}
+            </option>
+          ))}
+        </select>
         <input
           value={githubUrl}
           onChange={(e) => setGithubUrl(e.target.value)}

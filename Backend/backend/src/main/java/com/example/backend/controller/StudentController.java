@@ -1,9 +1,11 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.response.ApiResponse;
+import com.example.backend.dto.response.AssignmentResponse;
 import com.example.backend.dto.response.EnrollmentCourseResponse;
 import com.example.backend.dto.response.PageResponse;
 import com.example.backend.dto.response.StudentCourseResponse;
+import com.example.backend.service.AssignmentService;
 import com.example.backend.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class StudentController {
 
+    private final AssignmentService assignmentService;
     private final EnrollmentService enrollmentService;
 
     @GetMapping
@@ -36,6 +39,15 @@ public class StudentController {
             @RequestParam(defaultValue = "10") int size) {
         PageResponse<EnrollmentCourseResponse> data = enrollmentService.listMyEnrollments(currentEmail(authentication), page, size);
         return ResponseEntity.ok(ApiResponse.success("List enrollments successful", data));
+    }
+
+    @GetMapping("/assignments")
+    public ResponseEntity<ApiResponse<PageResponse<AssignmentResponse>>> listMyAssignments(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageResponse<AssignmentResponse> data = assignmentService.listForStudent(currentEmail(authentication), page, size);
+        return ResponseEntity.ok(ApiResponse.success("List assignments successful", data));
     }
 
     @PostMapping("/{courseId}/enroll")

@@ -1,6 +1,8 @@
 import { axiosClient } from './axiosClient';
 import type {
+  AssignmentItem,
   ApiSuccessResponse,
+  CreateAssignmentPayload,
   GradeItem,
   GradePayload,
   LectureMaterialItem,
@@ -9,6 +11,22 @@ import type {
 } from '../types/auth';
 
 export const lecturerApi = {
+  async createAssignment(payload: CreateAssignmentPayload): Promise<AssignmentItem> {
+    const response = await axiosClient.post<ApiSuccessResponse<AssignmentItem>>(
+      '/lecturer/assignments',
+      payload
+    );
+    return response.data.data;
+  },
+
+  async listAssignments(page = 0, size = 10): Promise<PageResponse<AssignmentItem>> {
+    const response = await axiosClient.get<ApiSuccessResponse<PageResponse<AssignmentItem>>>(
+      '/lecturer/assignments',
+      { params: { page, size } }
+    );
+    return response.data.data;
+  },
+
   async listSubmissions(page = 0, size = 10): Promise<PageResponse<LecturerSubmissionItem>> {
     const response = await axiosClient.get<ApiSuccessResponse<PageResponse<LecturerSubmissionItem>>>(
       '/lecturer/submissions',

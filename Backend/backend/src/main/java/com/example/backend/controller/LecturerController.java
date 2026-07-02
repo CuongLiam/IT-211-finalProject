@@ -1,7 +1,9 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.request.CreateAssignmentRequest;
 import com.example.backend.dto.request.GradeRequest;
 import com.example.backend.dto.response.*;
+import com.example.backend.service.AssignmentService;
 import com.example.backend.service.GradeService;
 import com.example.backend.service.LectureMaterialService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,8 +24,28 @@ import org.springframework.web.server.ResponseStatusException;
 @Tag(name = "Lecturer", description = "Grading and lecture material management")
 public class LecturerController {
 
+    private final AssignmentService assignmentService;
     private final GradeService gradeService;
     private final LectureMaterialService lectureMaterialService;
+
+    @Operation(summary = "Create assignment for lecturer course")
+    @PostMapping("/assignments")
+    public ResponseEntity<ApiResponse<AssignmentResponse>> createAssignment(
+            Authentication authentication,
+            @Valid @RequestBody CreateAssignmentRequest request) {
+        AssignmentResponse data = assignmentService.createForLecturer(currentEmail(authentication), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Create assignment successful", data));
+    }
+
+    @Operation(summary = "List lecturer assignments")
+    @GetMapping("/assignments")
+    public ResponseEntity<ApiResponse<PageResponse<AssignmentResponse>>> listLecturerAssignments(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageResponse<AssignmentResponse> data = assignmentService.listForLecturer(currentEmail(authentication), page, size);
+        return ResponseEntity.ok(ApiResponse.success("List assignments successful", data));
+    }
 
     @Operation(summary = "List submissions for grading")
     @GetMapping("/submissions")

@@ -1,5 +1,6 @@
 import { axiosClient } from './axiosClient';
 import type {
+  AssignmentItem,
   ApiSuccessResponse,
   EnrollmentCourse,
   PageResponse,
@@ -41,6 +42,17 @@ export const studentApi = {
           page: params.page ?? 0,
           size: params.size ?? 10,
         },
+      }
+    );
+
+    return response.data.data;
+  },
+
+  async listAssignments(page = 0, size = 20): Promise<PageResponse<AssignmentItem>> {
+    const response = await axiosClient.get<ApiSuccessResponse<PageResponse<AssignmentItem>>>(
+      '/student/courses/assignments',
+      {
+        params: { page, size },
       }
     );
 
