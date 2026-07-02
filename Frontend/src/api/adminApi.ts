@@ -7,6 +7,8 @@ import type {
   CreateUserPayload,
   PageResponse,
   Role,
+  UpdateCoursePayload,
+  UpdateUserPayload,
 } from '../types/auth';
 
 interface SearchUsersParams {
@@ -44,6 +46,11 @@ export const adminApi = {
     await axiosClient.delete(`/admin/users/${userId}`);
   },
 
+  async updateUser(userId: number, payload: UpdateUserPayload): Promise<AdminUser> {
+    const response = await axiosClient.put<ApiSuccessResponse<AdminUser>>(`/admin/users/${userId}`, payload);
+    return response.data.data;
+  },
+
   async searchCourses(params: SearchCoursesParams): Promise<PageResponse<AdminCourse>> {
     const response = await axiosClient.get<ApiSuccessResponse<PageResponse<AdminCourse>>>('/admin/courses', {
       params: {
@@ -62,5 +69,10 @@ export const adminApi = {
 
   async deleteCourse(courseId: number): Promise<void> {
     await axiosClient.delete(`/admin/courses/${courseId}`);
+  },
+
+  async updateCourse(courseId: number, payload: UpdateCoursePayload): Promise<AdminCourse> {
+    const response = await axiosClient.put<ApiSuccessResponse<AdminCourse>>(`/admin/courses/${courseId}`, payload);
+    return response.data.data;
   },
 };

@@ -10,6 +10,8 @@ import type {
   CreateUserPayload,
   PageResponse,
   Role,
+  UpdateCoursePayload,
+  UpdateUserPayload,
 } from '../../types/auth';
 
 type Tab = 'users' | 'courses';
@@ -48,6 +50,20 @@ const UserManagementPage: React.FC = () => {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editUserForm, setEditUserForm] = useState<UpdateUserPayload>({
+    fullName: '',
+    email: '',
+    role: 'STUDENT',
+    enabled: true,
+  });
+  const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
+  const [editCourseForm, setEditCourseForm] = useState<UpdateCoursePayload>({
+    code: '',
+    name: '',
+    description: '',
+    lecturerId: 0,
+  });
 
   const lecturerOptions = useMemo(() => {
     const users = userData?.content ?? [];
@@ -174,6 +190,39 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
+  const startEditUser = (u: AdminUser) => {
+    setEditingUserId(u.id);
+    setEditUserForm({
+      fullName: u.fullName,
+      email: u.email,
+      role: u.role,
+      enabled: u.enabled,
+    });
+  };
+
+  const cancelEditUser = () => {
+    setEditingUserId(null);
+    setEditUserForm({
+      fullName: '',
+      email: '',
+      role: 'STUDENT',
+      enabled: true,
+    });
+  };
+
+  const saveEditUser = async (id: number) => {
+    try {
+      setSubmitting(true);
+      await adminApi.updateUser(id, editUserForm);
+      setEditingUserId(null);
+      await loadUsers();
+    } catch (err) {
+      setErrorMessage(extractErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDeleteCourse = async (id: number) => {
     if (!window.confirm(`Delete course #${id}?`)) return;
     try {
@@ -181,6 +230,47 @@ const UserManagementPage: React.FC = () => {
       await loadCourses();
     } catch (err) {
       setErrorMessage(extractErrorMessage(err));
+    }
+  };
+
+  const startEditCourse = (c: AdminCourse) => {
+    setEditingCourseId(c.id);
+    setEditCourseForm({
+      code: c.code,
+      name: c.name,
+      description: c.description ?? '',
+      lecturerId: c.lecturerId,
+    });
+  };
+
+  const cancelEditCourse = () => {
+    setEditingCourseId(null);
+    setEditCourseForm({
+      code: '',
+      name: '',
+      description: '',
+      lecturerId: 0,
+    });
+  };
+
+  const saveEditCourse = async (id: number) => {
+    if (!editCourseForm.lecturerId) {
+      setErrorMessage('Please select lecturer');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await adminApi.updateCourse(id, {
+        ...editCourseForm,
+        description: editCourseForm.description?.trim() || undefined,
+      });
+      setEditingCourseId(null);
+      await loadCourses();
+    } catch (err) {
+      setErrorMessage(extractErrorMessage(err));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -318,17 +408,84 @@ const UserManagementPage: React.FC = () => {
                     (userData?.content ?? []).map((u) => (
                       <tr key={u.id} className="border-t border-slate-100">
                         <td className="px-3 py-2">{u.id}</td>
-                        <td className="px-3 py-2">{u.fullName}</td>
-                        <td className="px-3 py-2">{u.email}</td>
-                        <td className="px-3 py-2">{u.role}</td>
-                        <td className="px-3 py-2">{u.enabled ? 'Yes' : 'No'}</td>
                         <td className="px-3 py-2">
-                          <button
-                            onClick={() => void handleDeleteUser(u.id)}
-                            className="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-500"
-                          >
-                            Delete
-                          </button>
+                          {editingUserId === u.id ? (
+                            <input
+                              value={editUserForm.fullName}
+                              onChange={(e) => setEditUserForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                              className="rounded border border-slate-300 px-2 py-1"
+                            />
+                          ) : (
+                            u.fullName
+                          )}
+                        </td>
+                        <td className="px-3 py-2">{u.email}</td>
+                        <td className="px-3 py-2">
+                          {editingUserId === u.id ? (
+                            <select
+                              value={editUserForm.role}
+                              onChange={(e) => setEditUserForm((prev) => ({ ...prev, role: e.target.value as Role }))}
+                              className="rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="ADMIN">ADMIN</option>
+                              <option value="LECTURER">LECTURER</option>
+                              <option value="STUDENT">STUDENT</option>
+                            </select>
+                          ) : (
+                            u.role
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {editingUserId === u.id ? (
+                            <select
+                              value={editUserForm.enabled ? 'true' : 'false'}
+                              onChange={(e) =>
+                                setEditUserForm((prev) => ({ ...prev, enabled: e.target.value === 'true' }))
+                              }
+                              className="rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="true">Yes</option>
+                              <option value="false">No</option>
+                            </select>
+                          ) : (
+                            u.enabled ? 'Yes' : 'No'
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-2">
+                            {editingUserId === u.id ? (
+                              <>
+                                <button
+                                  onClick={() => void saveEditUser(u.id)}
+                                  disabled={submitting}
+                                  className="rounded bg-emerald-600 px-2 py-1 text-white hover:bg-emerald-500 disabled:opacity-60"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={cancelEditUser}
+                                  className="rounded bg-slate-500 px-2 py-1 text-white hover:bg-slate-400"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => startEditUser(u)}
+                                  className="rounded bg-amber-600 px-2 py-1 text-white hover:bg-amber-500"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => void handleDeleteUser(u.id)}
+                                  className="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-500"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -431,16 +588,96 @@ const UserManagementPage: React.FC = () => {
                     (courseData?.content ?? []).map((c) => (
                       <tr key={c.id} className="border-t border-slate-100">
                         <td className="px-3 py-2">{c.id}</td>
-                        <td className="px-3 py-2">{c.code}</td>
-                        <td className="px-3 py-2">{c.name}</td>
-                        <td className="px-3 py-2">{c.lecturerName}</td>
                         <td className="px-3 py-2">
-                          <button
-                            onClick={() => void handleDeleteCourse(c.id)}
-                            className="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-500"
-                          >
-                            Delete
-                          </button>
+                          {editingCourseId === c.id ? (
+                            <input
+                              value={editCourseForm.code}
+                              onChange={(e) => setEditCourseForm((prev) => ({ ...prev, code: e.target.value }))}
+                              className="rounded border border-slate-300 px-2 py-1"
+                            />
+                          ) : (
+                            c.code
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {editingCourseId === c.id ? (
+                            <input
+                              value={editCourseForm.name}
+                              onChange={(e) => setEditCourseForm((prev) => ({ ...prev, name: e.target.value }))}
+                              className="rounded border border-slate-300 px-2 py-1"
+                            />
+                          ) : (
+                            <div>
+                              <div>{c.name}</div>
+                              {c.description && <div className="text-xs text-slate-500">{c.description}</div>}
+                            </div>
+                          )}
+                          {editingCourseId === c.id && (
+                            <input
+                              value={editCourseForm.description ?? ''}
+                              onChange={(e) =>
+                                setEditCourseForm((prev) => ({ ...prev, description: e.target.value }))
+                              }
+                              className="mt-1 rounded border border-slate-300 px-2 py-1"
+                              placeholder="Description"
+                            />
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {editingCourseId === c.id ? (
+                            <select
+                              value={editCourseForm.lecturerId || ''}
+                              onChange={(e) =>
+                                setEditCourseForm((prev) => ({ ...prev, lecturerId: Number(e.target.value) }))
+                              }
+                              className="rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="">Select lecturer</option>
+                              {lecturerOptions.map((lec) => (
+                                <option key={lec.id} value={lec.id}>
+                                  {lec.fullName} ({lec.email})
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            c.lecturerName
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-2">
+                            {editingCourseId === c.id ? (
+                              <>
+                                <button
+                                  onClick={() => void saveEditCourse(c.id)}
+                                  disabled={submitting}
+                                  className="rounded bg-emerald-600 px-2 py-1 text-white hover:bg-emerald-500 disabled:opacity-60"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={cancelEditCourse}
+                                  className="rounded bg-slate-500 px-2 py-1 text-white hover:bg-slate-400"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => startEditCourse(c)}
+                                  className="rounded bg-amber-600 px-2 py-1 text-white hover:bg-amber-500"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => void handleDeleteCourse(c.id)}
+                                  className="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-500"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -92,7 +92,21 @@ export interface CreateUserPayload {
   enabled: boolean;
 }
 
+export interface UpdateUserPayload {
+  fullName: string;
+  email: string;
+  role: Role;
+  enabled: boolean;
+}
+
 export interface CreateCoursePayload {
+  code: string;
+  name: string;
+  description?: string;
+  lecturerId: number;
+}
+
+export interface UpdateCoursePayload {
   code: string;
   name: string;
   description?: string;
